@@ -1,6 +1,6 @@
 // ============ 密码 ============
 // 自己改一个只有你知道的密码
-const ADMIN_PASSWORD = 'woaini520';
+const ADMIN_PASSWORD = 'chenjiayu9693';
 
 // ============ 登录 ============
 function login() {
