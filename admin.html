@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>作者后台</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { max-width: 900px; }
+    .login-box { max-width: 320px; margin: 80px auto; text-align: center; }
+    .login-box input {
+      width: 100%; padding: 10px; margin: 12px 0;
+      border: 1px solid #ddd; border-radius: 4px; font-size: 14px;
+    }
+    .login-box button {
+      width: 100%; padding: 10px; background: #8b5a2b; color: #fff;
+      border: none; border-radius: 4px; cursor: pointer; font-size: 15px;
+    }
+    .panel { margin-top: 20px; }
+    .panel h2 { margin: 24px 0 12px; }
+    .form-row { margin-bottom: 12px; }
+    .form-row label { display: block; font-size: 13px; color: #666; margin-bottom: 4px; }
+    .form-row input, .form-row textarea {
+      width: 100%; padding: 8px; border: 1px solid #ddd;
+      border-radius: 4px; font-family: inherit; font-size: 14px;
+    }
+    .form-row textarea { min-height: 240px; resize: vertical; line-height: 1.7; }
+    .btn {
+      background: #8b5a2b; color: #fff; border: none;
+      padding: 9px 20px; border-radius: 4px; cursor: pointer;
+      font-size: 14px; margin-right: 8px;
+    }
+    .btn:hover { background: #6d4520; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-danger { background: #c0392b; }
+    .btn-danger:hover { background: #a02c20; }
+    .chapter-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 12px; border: 1px solid #eee; border-radius: 4px;
+      margin-bottom: 8px; background: #fff;
+    }
+    .chapter-item .info { flex: 1; }
+    .chapter-item .info .id { font-size: 12px; color: #999; }
+    .comment-item {
+      padding: 12px; border-bottom: 1px solid #f0f0f0; font-size: 14px;
+    }
+    .comment-item .meta { font-size: 12px; color: #999; margin-bottom: 4px; }
+    .hidden { display: none; }
+    .status {
+      font-size: 13px; color: #666; margin-left: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 登录框 -->
+  <div id="loginBox" class="login-box">
+    <h1>作者后台</h1>
+    <p style="color:#999;font-size:13px;">请输入管理密码</p>
+    <input id="pwd" type="password" placeholder="密码" autocomplete="off">
+    <button onclick="login()">进入</button>
+    <p id="loginError" style="color:#c0392b;font-size:13px;height:16px;"></p>
+  </div>
+
+  <!-- 主面板 -->
+  <div id="panel" class="panel hidden">
+    <p style="display:flex;justify-content:space-between;">
+      <span>作者后台</span>
+      <a href="#" onclick="logout()">退出</a>
+    </p>
+
+    <!-- 发布新章节 -->
+    <h2>发布新章节</h2>
+    <div class="form-row">
+      <label>章节 ID（英文数字，如 003，不能重复）</label>
+      <input id="newId" placeholder="如 003">
+    </div>
+    <div class="form-row">
+      <label>章节标题</label>
+      <input id="newTitle" placeholder="如 第三章 相遇">
+    </div>
+    <div class="form-row">
+      <label>正文（用两个换行分隔段落）</label>
+      <textarea id="newContent" placeholder="正文内容..."></textarea>
+    </div>
+    <div>
+      <button class="btn" id="publishBtn" onclick="publishChapter()">发布</button>
+      <button class="btn" onclick="clearForm()">清空</button>
+      <span id="publishStatus" class="status"></span>
+    </div>
+
+    <!-- 已有章节 -->
+    <h2>已有章节</h2>
+    <div id="chapterList"></div>
+
+    <!-- 评论 -->
+    <h2>所有评论</h2>
+    <div id="commentList"></div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>
