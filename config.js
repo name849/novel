@@ -2,5 +2,5 @@
 const GITHUB_CONFIG = {
   owner: 'name849',
   repo: 'novel',
-  token: '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'
+  token: 'ghp_TxYWwLxdV9LIcy6s'+'TWIeuJjflGSh9n1J7UpM'
 };
