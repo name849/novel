@@ -1,5 +1,5 @@
 // ============ 密码 ============
-// 自己改一个只有你知道的密码
+// 改成你自己的密码
 const ADMIN_PASSWORD = 'chenjiayu9693';
 
 // ============ 登录 ============
@@ -25,36 +25,43 @@ function showPanel() {
   loadComments();
 }
 
-// 页面加载时检查是否已登录
 if (sessionStorage.getItem('admin_ok') === '1') {
   showPanel();
 }
 
-// 回车登录
 document.getElementById('pwd').addEventListener('keydown', e => {
   if (e.key === 'Enter') login();
 });
 
-// ============ 读取章节 ============
-let chaptersCache = [];
+// ============ 工具：拉取最新数据（绕过缓存） ============
+async function fetchFresh(path) {
+  const res = await fetch(path + '?t=' + Date.now(), { cache: 'no-store' });
+  if (!res.ok) throw new Error('读取失败 ' + res.status);
+  return res.json();
+}
 
+// ============ 读取章节（显示在后台列表） ============
 async function loadChapters() {
-  const res = await fetch('chapters.json?t=' + Date.now());
-  chaptersCache = await res.json();
-  const box = document.getElementById('chapterList');
-  if (chaptersCache.length === 0) {
-    box.innerHTML = '<p style="color:#999;">还没有章节</p>';
-    return;
-  }
-  box.innerHTML = chaptersCache.map((ch, i) => `
-    <div class="chapter-item">
-      <div class="info">
-        <a href="chapter.html?id=${ch.id}" target="_blank">${escapeHtml(ch.title)}</a>
-        <div class="id">ID: ${escapeHtml(ch.id)}</div>
+  try {
+    const chapters = await fetchFresh('chapters.json');
+    const box = document.getElementById('chapterList');
+    if (chapters.length === 0) {
+      box.innerHTML = '<p style="color:#999;">还没有章节</p>';
+      return;
+    }
+    box.innerHTML = chapters.map(ch => `
+      <div class="chapter-item">
+        <div class="info">
+          <a href="chapter.html?id=${ch.id}" target="_blank">${escapeHtml(ch.title)}</a>
+          <div class="id">ID: ${escapeHtml(ch.id)}</div>
+        </div>
+        <button class="btn btn-danger" onclick="deleteChapter('${ch.id}')">删除</button>
       </div>
-      <button class="btn btn-danger" onclick="deleteChapter('${ch.id}')">删除</button>
-    </div>
-  `).join('');
+    `).join('');
+  } catch (e) {
+    document.getElementById('chapterList').innerHTML =
+      '<p style="color:#c0392b;">加载失败：' + e.message + '</p>';
+  }
 }
 
 // ============ 发布新章节 ============
@@ -67,10 +74,6 @@ async function publishChapter() {
     alert('三个字段都要填');
     return;
   }
-  if (chaptersCache.some(c => c.id === id)) {
-    alert('这个章节 ID 已经存在，换一个');
-    return;
-  }
 
   const btn = document.getElementById('publishBtn');
   const status = document.getElementById('publishStatus');
@@ -78,14 +81,18 @@ async function publishChapter() {
   status.textContent = '发布中...';
 
   try {
-    const newCh = {
-      id,
-      title,
-      content,
-      time: new Date().toISOString()
-    };
-    const list = chaptersCache.concat([newCh]);
+    // ★ 关键：发布前重新拉取最新的 chapters.json，避免用旧数据覆盖
+    const fresh = await fetchFresh('chapters.json');
+
+    if (fresh.some(c => c.id === id)) {
+      throw new Error('ID ' + id + ' 已经存在');
+    }
+
+    const newCh = { id, title, content, time: new Date().toISOString() };
+    const list = fresh.concat([newCh]);
+
     await writeFile('chapters.json', list, `发布章节：${title}`);
+
     status.textContent = '✅ 发布成功';
     clearForm();
     await loadChapters();
@@ -94,7 +101,7 @@ async function publishChapter() {
   }
 
   btn.disabled = false;
-  setTimeout(() => status.textContent = '', 3000);
+  setTimeout(() => status.textContent = '', 4000);
 }
 
 function clearForm() {
@@ -107,7 +114,9 @@ function clearForm() {
 async function deleteChapter(id) {
   if (!confirm('确定删除章节 ' + id + '？此操作不可恢复。')) return;
   try {
-    const list = chaptersCache.filter(c => c.id !== id);
+    // ★ 同样：删除前重新拉取
+    const fresh = await fetchFresh('chapters.json');
+    const list = fresh.filter(c => c.id !== id);
     await writeFile('chapters.json', list, `删除章节：${id}`);
     await loadChapters();
   } catch (e) {
@@ -117,53 +126,68 @@ async function deleteChapter(id) {
 
 // ============ 读取所有评论 ============
 async function loadComments() {
-  const res = await fetch('comments.json?t=' + Date.now());
-  const all = await res.json();
-  const box = document.getElementById('commentList');
-  if (all.length === 0) {
-    box.innerHTML = '<p style="color:#999;">还没有评论</p>';
-    return;
-  }
-  // 按时间倒序
-  const sorted = all.slice().sort((a, b) => new Date(b.time) - new Date(a.time));
-  box.innerHTML = sorted.map(c => `
-    <div class="comment-item">
-      <div class="meta">
-        章节 ${escapeHtml(c.chapterId)} ·
-        <b>${escapeHtml(c.nickname)}</b> ·
-        ${new Date(c.time).toLocaleString('zh-CN')}
+  try {
+    const all = await fetchFresh('comments.json');
+    const box = document.getElementById('commentList');
+    if (all.length === 0) {
+      box.innerHTML = '<p style="color:#999;">还没有评论</p>';
+      return;
+    }
+    const sorted = all.slice().sort((a, b) => new Date(b.time) - new Date(a.time));
+    box.innerHTML = sorted.map(c => `
+      <div class="comment-item">
+        <div class="meta">
+          章节 ${escapeHtml(c.chapterId)} ·
+          <b>${escapeHtml(c.nickname)}</b> ·
+          ${new Date(c.time).toLocaleString('zh-CN')}
+        </div>
+        <div>${escapeHtml(c.content)}</div>
       </div>
-      <div>${escapeHtml(c.content)}</div>
-    </div>
-  `).join('');
+    `).join('');
+  } catch (e) {
+    document.getElementById('commentList').innerHTML =
+      '<p style="color:#c0392b;">加载失败：' + e.message + '</p>';
+  }
 }
 
-// ============ 写文件到 GitHub ============
-async function writeFile(path, data, message) {
+// ============ 写文件到 GitHub（带自动重试） ============
+async function writeFile(path, data, message, retries = 3) {
   const { owner, repo, token } = GITHUB_CONFIG;
   const api = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
 
-  // 拿当前 sha
-  const getRes = await fetch(api + '?t=' + Date.now(), {
-    headers: { Authorization: `token ${token}` }
-  });
-  if (!getRes.ok) throw new Error('读取失败 ' + getRes.status);
-  const file = await getRes.json();
+  let lastErr = null;
+  for (let i = 0; i < retries; i++) {
+    try {
+      // 每次重试都重新拿 sha
+      const getRes = await fetch(api + '?t=' + Date.now(), {
+        headers: { Authorization: `token ${token}` }
+      });
+      if (!getRes.ok) throw new Error('读取失败 ' + getRes.status);
+      const file = await getRes.json();
 
-  // 提交
-  const putRes = await fetch(api, {
-    method: 'PUT',
-    headers: {
-      Authorization: `token ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      message,
-      content: btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2)))),
-      sha: file.sha
-    })
-  });
-  if (!putRes.ok) throw new Error('写入失败 ' + putRes.status);
+      const putRes = await fetch(api, {
+        method: 'PUT',
+        headers: {
+          Authorization: `token ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          message,
+          content: btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2)))),
+          sha: file.sha
+        })
+      });
+      if (!putRes.ok) throw new Error('写入失败 ' + putRes.status);
+      return; // 成功
+    } catch (e) {
+      lastErr = e;
+      if (i < retries - 1) {
+        // 等 1.5 秒重试
+        await new Promise(r => setTimeout(r, 1500));
+      }
+    }
+  }
+  throw lastErr;
 }
 
 // ============ 防 XSS ============
