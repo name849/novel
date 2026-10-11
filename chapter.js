@@ -1,11 +1,11 @@
-// 拿到网址里的 ?id=001
+// ---------- 基础 ----------
 const params = new URLSearchParams(location.search);
 const chapterId = params.get('id');
 
 let allChapters = [];
 let currentIndex = -1;
 
-// 读取所有章节
+// ---------- 加载章节 ----------
 fetch('chapters.json')
   .then(r => r.json())
   .then(chapters => {
@@ -38,11 +38,10 @@ fetch('chapters.json')
     localStorage.setItem('lastChapter', ch.id);
     localStorage.setItem('lastTitle', ch.title);
 
-    // 加载评论
     loadComments();
   });
 
-// 读取并显示评论
+// ---------- 加载评论 ----------
 function loadComments() {
   fetch('comments.json?t=' + Date.now())
     .then(r => r.json())
@@ -65,27 +64,94 @@ function loadComments() {
     });
 }
 
-// 提交评论
-function submitComment() {
+// ---------- 提交评论 ----------
+async function submitComment() {
   const nickname = document.getElementById('nickname').value.trim() || '匿名';
   const content = document.getElementById('commentText').value.trim();
+
   if (!content) {
     alert('评论不能为空');
     return;
   }
 
-  // 把昵称记住，下次不用重填
-  localStorage.setItem('nickname', nickname);
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = '提交中...';
 
-  // 注意：这里先做"本地假提交"，等你配置好 GitHub 后再改成真提交
-  alert('评论功能还没接后台，下一步教你接。\n\n你的评论：\n' + content);
+  try {
+    await pushComment({
+      chapterId,
+      nickname,
+      content,
+      time: new Date().toISOString()
+    });
+
+    localStorage.setItem('nickname', nickname);
+    document.getElementById('commentText').value = '';
+    await loadComments();
+  } catch (e) {
+    alert('提交失败：' + e.message);
+    console.error(e);
+  }
+
+  btn.disabled = false;
+  btn.textContent = '发表评论';
 }
 
-// 自动填上次的昵称
-const savedNick = localStorage.getItem('nickname');
-if (savedNick) document.getElementById('nickname').value = savedNick;
+// ---------- 写入 GitHub ----------
+async function pushComment(newComment) {
+  const { owner, repo, token } = GITHUB_CONFIG;
 
-// 防 XSS
+  if (!owner || !repo || !token || token.indexOf('ghp_') !== 0) {
+    throw new Error('config.js 里的 owner/repo/token 没填好');
+  }
+
+  const api = `https://api.github.com/repos/${owner}/${repo}/contents/comments.json`;
+
+  // 1. 读取当前文件
+  const getRes = await fetch(api + '?t=' + Date.now(), {
+    headers: { Authorization: `token ${token}` }
+  });
+  if (!getRes.ok) {
+    throw new Error('读取失败（状态码 ' + getRes.status + '），检查 token 和网络');
+  }
+  const file = await getRes.json();
+
+  // 2. 解码 + 追加
+  const current = JSON.parse(
+    decodeURIComponent(escape(atob(file.content.replace(/\s/g, ''))))
+  );
+  current.push(newComment);
+
+  // 3. 提交
+  const putRes = await fetch(api, {
+    method: 'PUT',
+    headers: {
+      Authorization: `token ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      message: `新评论 by ${newComment.nickname}`,
+      content: btoa(unescape(encodeURIComponent(JSON.stringify(current, null, 2)))),
+      sha: file.sha
+    })
+  });
+  if (!putRes.ok) {
+    throw new Error('写入失败（状态码 ' + putRes.status + '）');
+  }
+}
+
+// ---------- 页面加载完绑定按钮 ----------
+window.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('submitBtn').addEventListener('click', submitComment);
+
+  const savedNick = localStorage.getItem('nickname');
+  if (savedNick) {
+    document.getElementById('nickname').value = savedNick;
+  }
+});
+
+// ---------- 防 XSS ----------
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, m => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
