@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>阅读</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <p><a href="index.html">← 返回目录</a></p>
+
+  <h1 id="title">加载中...</h1>
+
+  <div class="content" id="content"></div>
+
+  <div class="nav">
+    <a id="prev" href="#">← 上一章</a>
+    <a id="next" href="#">下一章 →</a>
+  </div>
+
+  <h2>评论</h2>
+  <div class="comment-form">
+    <input id="nickname" placeholder="你的昵称" maxlength="20">
+    <textarea id="commentText" placeholder="说点什么..."></textarea>
+    <button onclick="submitComment()">发表评论</button>
+  </div>
+  <div id="comments"></div>
+
+  <script src="config.js"></script>
+  <script src="chapter.js"></script>
+</body>
+</html>
